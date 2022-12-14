@@ -1,0 +1,52 @@
+# Start all comment and blank lines with #
+#keyword value pairs are separated by tab
+#only make global graph
+global_only	False
+#only make individual category graph, require categorylist to be filled with properly formatted file
+single_only	False
+# file with column name tab category name one per line. For graphing individual categories
+categorylist	None
+# input file with annotations
+inputfile	complete__AGI_proteins_15_normal.tsv
+# column with categroy annotations to merge on
+categorycolumn	F_name
+#columns containing quantitative data, before log transform, NaN allowed
+quantcolumns	N_WT1;N_WT2;N_WT3;N_WT4;N_WT5;N_D1;N_D2;N_D3;N_D4;N_D5;N_H1;N_H2;N_H3;N_H4;N_H5
+# all columns containing numerical values
+numcolumns	Precursors;Peptides;Proteotypic Precursors;Proteotypic Peptides
+#all columns containing text, category columns as well
+textcolumns	C;F;P;C_func;F_func;P_func;Protein.Group;Protein.Ids;Protein.Names;Genes;First.Protein.Description;C_name;F_name;P_name
+# conditions for ANOVA calculation, name:rep1,rep2,rep3;name2;rep4,rep5,rep6 rep - column names with particlular sample data
+conditions	WT:N_WT1,N_WT2,N_WT3,N_WT4,N_WT5;H:N_H1,N_H2,N_H3,N_H4,N_H5;D:N_D1,N_D2,N_D3,N_D4,N_D5
+#comparisons to take into accout, yet not working
+comparisons	WT,D;WT,H;D,H
+#renamer for column names to proper name for graphing
+renamer	F_name:Molecular Function;P_name:Biological Process;C_name:Cellular component
+#entity that was actually quantified in experiment, insert proper column name
+quantified_entity	Protein.Group
+# maximum individual ANOVA p-value for entity to be cosidered as informative and be used for merging the categories taking most of their
+# regulation from the same proteins
+max_valid_for_merging	0.1
+# Anova_separate - use -log10(p_value) as weight for calculation of overall group regulation. None for no weights
+weigths_type_for_concatenation	Anova_separate
+# keep as is, currently no change will work
+characterizers	Anova_characterizer;Anova_limiter
+#Keep as Valid_ANOVA_ + quantified_entity
+group_merging_column	Valid_ANOVA_Protein.Group
+# keep as is, no other column work, column with test result to cutoff group as regulated
+group_filtering	Anova_grouped
+# max test result for above column, keep <0.01
+max_categorywise_anova	0.0005
+# minimum calculated difference of groups. Keep >0.5 if weights are used, depending of data quality. Without weighting, may be lower
+minimum_categorywise_difference	0.8
+# minimum quantified entities in category to consider for calculation
+minimum_entities_per_category	3
+# label font sizes and plot sizes
+x_label_size	10
+y_label_size	10
+x_figure_size	10
+y_figure_size	20
+#
+# For individual category graphs
+# column with descriptions to annotate
+description_column	First.Protein.Description

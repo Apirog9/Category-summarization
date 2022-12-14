@@ -1,0 +1,145 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 13 15:38:42 2022
+
+
+functional interface to Gene Ontology Category summarizer
+A lot of stuff is suboptimal
+
+@author: APirog
+"""
+import os
+import category_merging_to_import
+import visualize_category_to_import
+
+paramfile = 'param.txt'
+
+linedict = {}
+lines = open(paramfile,'r').read().splitlines()
+for line in lines:
+    if line.startswith('#'):
+        pass
+    else:
+        line = line.split('\t')
+        linedict[line[0]] = line[1]
+    
+inputfile = linedict['inputfile']
+
+categorycolumn = linedict['categorycolumn']
+
+quantcolumns = linedict['quantcolumns'].split(';')
+
+numcolumns = linedict['numcolumns'].split(';')
+
+textcolumns = linedict['textcolumns'].split(';')
+
+conditions = linedict['conditions'].split(';')
+cond_dict = {}
+for item in conditions:
+    name = item.split(':')[0]
+    conditions=item.split(':')[1]
+    conditions = conditions.split(',')
+    cond_dict[name] = conditions
+conditions = cond_dict
+
+comparisons = linedict['comparisons'].split(';')
+comparisons = [x.split(',') for x in comparisons]
+
+renamer = linedict['renamer'].split(';')
+ren_dict = {}
+for item in renamer:
+    ren_dict[item.split(':')[0]] = item.split(':')[1]
+renamer = ren_dict
+
+quantified_entity = linedict['quantified_entity']
+
+max_valid_for_merging = float(linedict['max_valid_for_merging'])
+
+weight_name = linedict['weigths_type_for_concatenation']
+if weight_name == 'None':
+    weight_name = None
+
+characterizer_list = linedict['characterizers'].split(';')
+group_merging_column = linedict['group_merging_column']
+group_filtering_column = linedict['group_filtering']
+max_categorywise_anova = float(linedict['max_categorywise_anova'])
+minimum_categorywise_difference = float(linedict['minimum_categorywise_difference'])
+minimum_entities = int(linedict['minimum_entities_per_category'])
+fig_x_lab= float(linedict['x_label_size'])
+fig_y_lab=float(linedict['y_label_size'])
+fig_x_size = float(linedict['x_figure_size'])
+fig_y_size = float(linedict['y_figure_size'])
+
+global_only = linedict['global_only']
+if global_only == 'True':
+    global_only = True
+else:
+    global_only = False
+    
+single_only = linedict['single_only']
+if single_only == 'True':
+    single_only = True
+else:
+    single_only = False
+    
+categorylist = linedict['categorylist']
+if categorylist == 'None':
+    categorylist = None
+    
+description_column = linedict['description_column']
+
+print(inputfile)
+print(categorycolumn)
+print(quantcolumns)
+print(numcolumns)
+print(textcolumns)
+print(conditions)
+print(comparisons)
+print(renamer)
+print(quantified_entity)
+print(max_valid_for_merging)
+print(weight_name)
+print(characterizer_list)
+print(group_merging_column)
+print(group_filtering_column)
+print(max_categorywise_anova)
+print(minimum_categorywise_difference)
+print(minimum_entities)
+print(fig_x_lab)
+print(fig_y_lab)
+print(fig_x_size)
+print(fig_y_size)
+
+wd=os.getcwd()
+
+listname = None
+
+if not single_only:
+
+    plot,list_entries = category_merging_to_import.perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumns,conditions,comparisons,\
+                     renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
+                    group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
+                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size)
+    os.chdir(wd)
+    listname = categorycolumn+'_chosen_categories_.txt'
+    with open(listname,'w') as output:
+        for category in list_entries:
+            output.write(categorycolumn+'\t'+category+'\n')
+    plot.savefig(categorycolumn+'.png')
+
+if not global_only:
+    if listname == None and categorylist == None:
+        print('No IDs to graph!')
+    elif listname == None and categorylist != None:
+        listname = categorylist
+    elif listname !=None and categorylist != None:
+        listname = categorylist
+    print(listname)    
+    visualize_category_to_import.visualize_invidual(inputfile,quantified_entity,listname,quantcolumns,\
+                                                    conditions,description_column)
+    
+    
+
+
+
+
