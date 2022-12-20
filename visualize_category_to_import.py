@@ -22,13 +22,14 @@ import matplotlib.pyplot as plt
 import os
 
 
-
+#characters to be excluded from category name to make proper filename for plot
 invalid_characters = ';:,[]{}~-<>/\=+^%&*()'
 
-
-
-
 def take_items(entrylist):
+    ''' Takes simple text file in form type of category \t item name per line to create list of lists
+    returns item list of lists used for further plotting
+    entrylist - file name to get dictionary from
+    Returns list of two-element lists, [item category type,item] '''
     data = open(entrylist,'r').read().splitlines()
     itemlist = []
     for line in data:
@@ -36,7 +37,16 @@ def take_items(entrylist):
         itemlist.append(line)
     return itemlist
 
-def validate_rows(datasource,quantcolumns,groups,max_ANOVA,mindiff):
+def validate_rows(dataframe,quantcolumns,conditions,max_ANOVA,mindiff):
+    '''performs simple ANOVA based validation of quatitative rows. For now simple and 
+    uncorrected, for visualization purposes only
+    dataframe - input dataframefor calculation
+    quantcolumns - all columns used for quantitative analysis
+    conditions - condition:columns dictionary
+    max_ANOVA - max ANOVA p value for valid row
+    mindiff minimum maximal mean difference in experiment for valid row
+    returns dataframe with Valid Row column for marking reasonable quants in plot'''
+    
     def validate_anova(serieslike,groups,max_ANOVA,mindiff):
         arr = []
         for group in groups.keys():
@@ -64,39 +74,40 @@ def validate_rows(datasource,quantcolumns,groups,max_ANOVA,mindiff):
             returnval =[1,0,0]
         return returnval
     
-    datasource['Valid Row'] = datasource.apply(validate_anova,args = [groups,max_ANOVA,mindiff],axis =1)
-    return datasource
+    dataframe['Valid Row'] = dataframe.apply(validate_anova,args = [conditions,max_ANOVA,mindiff],axis =1)
+    return dataframe
 
-
-def impute(dataframe,columnset,indexcolumn,n):
-    '''KNN imputation wth n neighbors'''
-    print(dataframe.shape)
+def impute(dataframe,quantcolumns,quantified_entity,n):
+    '''KNN imputation wth n neighbors
+    imputed data is used only to enable row clustering for better per protein visualization
+    dataframe - input dataframe
+    quantcolumns - all columns used for quantitative analysis
+    quantified_entity - actually qiantified entity in data. Most commonly, protein group
+    n - neighbor number for imputation
+    Returns imputed data frame only for clustering purposes
+    
+    '''
     proteintest_df = copy.copy(dataframe)
     proteintest_df = proteintest_df.reset_index()
-    print(proteintest_df.shape)
     cols = list(proteintest_df.columns)
-    proteintest_quant = proteintest_df[columnset + [indexcolumn]] #take quantitative set
+    proteintest_quant = proteintest_df[quantcolumns + [quantified_entity]] #take quantitative set
     #proteintest_df = proteintest_df.drop_duplicates(subset = 'Protein.Group')
-    print(proteintest_quant.shape)
-    rest_cols = [x for x in cols if not x in columnset]
-    rest_cols_frame = proteintest_df[rest_cols]
-    print(rest_cols_frame.shape)                           #take rest of data
-    rest_cols_frame = rest_cols_frame.set_index(indexcolumn)
-    print(rest_cols_frame.shape)                #make identical index
-    proteintest_quant = proteintest_quant.set_index(indexcolumn)          #make identical index
-    print(proteintest_quant.shape) 
+    rest_cols = [x for x in cols if not x in quantcolumns]
+    rest_cols_frame = proteintest_df[rest_cols]#take rest of data
+    rest_cols_frame = rest_cols_frame.set_index(quantified_entity)#make identical index
+    proteintest_quant = proteintest_quant.set_index(quantified_entity)          #make identical index
     imputer = KNNImputer(n_neighbors=n,weights="distance")
     imputed_proteintest_quant = imputer.fit_transform(proteintest_quant)
     imputed_proteintest_quant = pd.DataFrame(imputed_proteintest_quant,columns = proteintest_quant.columns,index = proteintest_quant.index)
-    print(imputed_proteintest_quant.shape)
     imputed_data = imputed_proteintest_quant.join(rest_cols_frame)
-    print(imputed_data.shape)
     imputed_data = imputed_data.reset_index()
-    print(imputed_data.shape)
     return imputed_data
 
-
 def check_existence_single(string,substrings):
+    '''accessory function to check if item is in item list given as string separated by ;
+    string - string to split and search
+    substring - item to search for
+    Returns bool, if item is or is not present'''
     if pd.isna(string):
         val = False
     else:
@@ -107,38 +118,54 @@ def check_existence_single(string,substrings):
             val = False
     return val
 
-
 '''make sure that both chunks have the same index!'''
-def takechunk(datasource,datasource_imputed,quantcolumns,item,column,subitem_column,valid_column,description_column):
-     print(item)
+def takechunk(datasource,datasource_imputed,quantcolumns,item,column,quantified_entity,valid_column,description_column):
+     ''' Generates a proper data for plotting
+     datasource - raw data source for taking data for plot
+     datasource_imputed - imputed counterpart to take data for row clustering function - result of impute function
+     quantcolumns - all columns used for quantitative analysis
+     item - ; separated list of items to plot. ; separation is needed when the concatenated categories are used as input
+     column - column to look for item in
+     quantified_entity - actually qiantified entity in data. Most commonly, protein group
+     valid_column - column with source of data for marking valid (mean somehow useful quantitation) rows
+     description_column - column with description for row labels
+     Returns data chunk for plotting, data chunk counterpart withoun NaN for row clustering, item name for plot title
+     
+     '''
      splititem = item.split(';')
      datasource['lookup'] = datasource[column].apply(check_existence_single, args = [splititem])
      datachunk = datasource[datasource['lookup'] == True]
-     cols = quantcolumns+[subitem_column,valid_column,description_column]
+     cols = quantcolumns+[quantified_entity,valid_column,description_column]
      datachunk = datachunk[cols]
-     print(datasource_imputed.columns)
      datasource_imputed['lookup'] = datasource_imputed[column].apply(check_existence_single, args = [splititem])
      datachunk_imputed = datasource_imputed[datasource_imputed['lookup'] == True]
-     columns = quantcolumns + [subitem_column]
+     columns = quantcolumns + [quantified_entity]
      datachunk_imputed = datachunk_imputed[columns]
-     datachunk = datachunk.set_index(subitem_column)
-     datachunk_imputed = datachunk_imputed.set_index(subitem_column)
+     datachunk = datachunk.set_index(quantified_entity)
+     datachunk_imputed = datachunk_imputed.set_index(quantified_entity)
+     
      return [datachunk,datachunk_imputed,item]
      
-
-
-def clustermap_single(data,data_imputed,quantcolumns,description,subitem_column,valid_data,description_column):
+def clustermap_single(data,data_imputed,quantcolumns,description,quantified_entity,valid_data,description_column):
+    '''Makes a clustermap for individual category with per-entity(usually per-protein) rows and additional column
+    containing valid marker
+    data -  chunk of raw data
+    data_imputed - chunk of imputed data
+    description -  plot title string, usually categroy name
+    quantified_entity - actually qiantified entity in data. Most commonly, protein group
+    valid_data - column containing markers for valid and not valid rows, as rgb 3-element lists!
+    description_column - column with description for row labels
+    Returns seaborn.ClusterGrid instance
+    
+    '''
+    
     numrows = data.shape[0]
-    print(description)
-
-
-
     transform = lambda x: x[0:70] if len(x)>70 else x
     description = transform(description)
     cols = list(data.columns)
     cols.remove(valid_data)
     cols.remove(description_column)
-    #data = data.set_index(subitem_column)
+    #data = data.set_index(quantified_entity)
     for_clustering = data[cols]
     matrix = data_imputed[quantcolumns]
     matrix = np.array(matrix)
@@ -153,28 +180,14 @@ def clustermap_single(data,data_imputed,quantcolumns,description,subitem_column,
     cluster.ax_heatmap.set_ylabel(description_column)
     return cluster
     
-    
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-def visualize_invidual(inputfile,quantified_entity,entrylist,quantcolumns,conditions,description_column):
+''' TODO add option for use arbitrary column to plot valid rows'''
+def visualize_invidual(inputfile,quantified_entity,entrylist,quantcolumns,conditions,description_column,max_individual_ANOVA,min_individual_difference):
 
     datasource = pd.read_csv(inputfile, sep = '\t')
     datasource = datasource[pd.isna(datasource[quantified_entity]) == False]
     datasource[quantcolumns] = datasource[quantcolumns].apply(np.log2)
     datasource_imputed = impute(datasource,quantcolumns,quantified_entity,3)
-    datasource = validate_rows(datasource,quantcolumns,conditions,0.01,0.7)
+    datasource = validate_rows(datasource,quantcolumns,conditions,max_individual_ANOVA,min_individual_difference)
     entrylist = take_items(entrylist)
     dirname = entrylist[0][0]
     wd = os.getcwd()
