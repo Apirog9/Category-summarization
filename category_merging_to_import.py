@@ -296,18 +296,19 @@ def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig
     return cluster
 
 
-     
+''' TODO add opition for miobs mingroups for row filtering
+    for now change in line 311 -2 and -1 argument'''     
 def perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumns,conditions,comparisons,\
                      renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
                     group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
-                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size):
+                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_grp,mingroups_grp,neighbors_knn_grp):
     ''' Arguments from previous functions and params.txt file
     Returns seaborn.ClusterGrid instance for plotting and list of finally used categories'''
     
     
     dataframe = pd.read_csv(inputfile, sep = "\t")  
     # impute and filter valid values
-    test_frame = prepare_data_cl(dataframe,quantcolumns,conditions,quantified_entity,2,3,3)
+    test_frame = prepare_data_cl(dataframe,quantcolumns,conditions,quantified_entity,minobs_grp,mingroups_grp,neighbors_knn_grp)
     # calculate ANOVA per row in frame
     dataframe = calculate_ANOVA(test_frame,quantcolumns,conditions,"_separate")
     # transform ANOVA to pval to -log10

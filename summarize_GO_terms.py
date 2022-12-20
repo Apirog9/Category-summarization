@@ -87,6 +87,12 @@ if categorylist == 'None':
     categorylist = None
     
 description_column = linedict['description_column']
+max_individual_ANOVA = float(linedict['max_individual_ANOVA'])
+min_individual_difference = float(linedict['min_individual_difference'])
+minobs_before_knn = int(linedict['minobs_before_knn'])
+mingroups_before_knn = int(linedict['mingroups_before_knn'])
+n_neighbors_category_analysis = int(linedict['n_neighbors_category_analysis'])
+n_neighbors_row_clustering = int(linedict['n_neighbors_row clustering'])
 
 print(inputfile)
 print(categorycolumn)
@@ -113,13 +119,14 @@ print(fig_y_size)
 wd=os.getcwd()
 
 listname = None
-
+'''todo add minobs mingroups arugument for valid row filtering before imputation'''
 if not single_only:
 
     plot,list_entries = category_merging_to_import.perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumns,conditions,comparisons,\
                      renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
                     group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
-                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size)
+                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_before_knn,\
+                           mingroups_before_knn,n_neighbors_category_analysis)
     os.chdir(wd)
     listname = categorycolumn+'_chosen_categories_.txt'
     with open(listname,'w') as output:
@@ -136,7 +143,8 @@ if not global_only:
         listname = categorylist
     print(listname)    
     visualize_category_to_import.visualize_invidual(inputfile,quantified_entity,listname,quantcolumns,\
-                                                    conditions,description_column)
+                                                    conditions,description_column,max_individual_ANOVA,\
+                                                    min_individual_difference,n_neighbors_row_clustering)
     
     
 

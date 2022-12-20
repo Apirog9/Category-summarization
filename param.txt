@@ -51,6 +51,18 @@ characterizers	Anova_characterizer;Anova_limiter
 #Keep as Valid_ANOVA_ + quantified_entity
 group_merging_column	Valid_ANOVA_Protein.Group
 #########
+# minimum observations in one group, for prefiltering before imputation, to avoid imputing too empty rows
+minobs_before_knn	2
+#########
+# minimum groups containing at least minobs_before_knn observations, for prefiltering before imputation, to avoid imputing too empty rows. Must be less or equal to number of groups!
+mingroups_before_knn	3
+#########
+# neighbors for imputation before category merging
+n_neighbors_category_analysis	3
+#########
+# neighbors for imputation before visualization of row clusters, 3 should be ok
+n_neighbors_row clustering	3
+#########
 # keep as is, no other column work, column with test result to cutoff group as regulated
 group_filtering	Anova_grouped
 #########

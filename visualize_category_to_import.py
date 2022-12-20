@@ -181,12 +181,12 @@ def clustermap_single(data,data_imputed,quantcolumns,description,quantified_enti
     return cluster
     
 ''' TODO add option for use arbitrary column to plot valid rows'''
-def visualize_invidual(inputfile,quantified_entity,entrylist,quantcolumns,conditions,description_column,max_individual_ANOVA,min_individual_difference):
+def visualize_invidual(inputfile,quantified_entity,entrylist,quantcolumns,conditions,description_column,max_individual_ANOVA,min_individual_difference,neighbors_knn_rowcluster):
 
     datasource = pd.read_csv(inputfile, sep = '\t')
     datasource = datasource[pd.isna(datasource[quantified_entity]) == False]
     datasource[quantcolumns] = datasource[quantcolumns].apply(np.log2)
-    datasource_imputed = impute(datasource,quantcolumns,quantified_entity,3)
+    datasource_imputed = impute(datasource,quantcolumns,quantified_entity,neighbors_knn_rowcluster)
     datasource = validate_rows(datasource,quantcolumns,conditions,max_individual_ANOVA,min_individual_difference)
     entrylist = take_items(entrylist)
     dirname = entrylist[0][0]
