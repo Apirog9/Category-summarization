@@ -158,6 +158,14 @@ def clustermap_single(data,data_imputed,quantcolumns,description,quantified_enti
     Returns seaborn.ClusterGrid instance
     
     '''
+    def normalize_mean(serieslike):
+        try:
+            serieslike = serieslike - serieslike.mean()
+        except:
+            print(serieslike)
+            serieslike = serieslike
+        return serieslike
+    
     
     numrows = data.shape[0]
     transform = lambda x: x[0:70] if len(x)>70 else x
@@ -167,12 +175,14 @@ def clustermap_single(data,data_imputed,quantcolumns,description,quantified_enti
     cols.remove(description_column)
     #data = data.set_index(quantified_entity)
     for_clustering = data[cols]
+    #0 mean
+    for_clustering[quantcolumns] = for_clustering[quantcolumns].apply(normalize_mean,axis=1)
     matrix = data_imputed[quantcolumns]
     matrix = np.array(matrix)
     dist_matrix = distance(matrix)
     link = linkage(dist_matrix)
     seaborn.plotting_context(rc={'xtick.labelsize': 10,'ytick.labelsize': 10,"font.size" :10})
-    cluster = seaborn.clustermap(for_clustering,cmap="coolwarm",z_score=0,metric="correlation",figsize = (15,(numrows/4)+2),col_cluster=False,\
+    cluster = seaborn.clustermap(for_clustering,cmap="coolwarm",z_score=None,metric="correlation",figsize = (15,(numrows/4)+2),col_cluster=False,\
     dendrogram_ratio=(0,0.1),colors_ratio = (0.05),cbar_pos = (0,1,0.05,0.2),tree_kws={"linewidths":0},\
     row_colors = data[valid_data],row_linkage = link,yticklabels = data[description_column])
     cluster.ax_heatmap.set_title(description)
