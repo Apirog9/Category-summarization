@@ -12,44 +12,43 @@ single_only	False
 categorylist	None
 #########
 # input file with annotations
-inputfile	complete__AGI_proteins_9_cold.tsv
+inputfile	isg_map_complete_full_SiHA_binders_annot.txt
 #########
 # column with categroy annotations to merge on
 categorycolumn	P_name
 #########
 #columns containing quantitative data, before log transform, NaN allowed
-quantcolumns	C_WT1;C_WT2;C_WT3;C_D1;C_D2;C_D3;C_H1;C_H2;C_H3
-#########
+quantcolumns	wt1;wt2;wt3;1/3KO1;1/3KO2;1/3KO3;wtIFNg1;wtIFNg2;wtIFNg3;1/3KOIFNg1;1/3KOIFNg2;1/3KOIFNg3
 # all columns containing numerical values
-numcolumns	Precursors;Peptides;Proteotypic Precursors;Proteotypic Peptides
+numcolumns	N: HLA-A*24:02;N: HLA-B*40:02;N: HLA-C*03:04
 #########
 #all columns containing text, category columns as well
-textcolumns	C;F;P;C_func;F_func;P_func;Protein.Group;Protein.Ids;Protein.Names;Genes;First.Protein.Description;C_name;F_name;P_name
+textcolumns	C_name;F_name;P_name;T: Modified.Sequence;T: Stripped.Sequence;T: Protein.Group;T: Protein.Ids;T: Protein.Names;T: Genes;T: First.Protein.Description
 #########
 # conditions for ANOVA calculation, name:rep1,rep2,rep3;name2;rep4,rep5,rep6 rep - column names with particlular sample data
-conditions	WT:C_WT1,C_WT2,C_WT3;H:C_H1,C_H2,C_H3;D:C_D1,C_D2,C_D3
+conditions	WT:wt1,wt2,wt3;1/3KO:1/3KO1,1/3KO2,1/3KO3;WT_IFN:wtIFNg1,wtIFNg2,wtIFNg3;1/3KO_IFN:1/3KOIFNg1,1/3KOIFNg2,1/3KOIFNg3
 #########
 #comparisons to take into accout, yet not working
-comparisons	WT,D;WT,H;D,H
+comparisons	WT,KO;WTIFN,WT;D,H
 #########
 #renamer for column names to proper name for graphing
 renamer	F_name:Molecular Function;P_name:Biological Process;C_name:Cellular component
 #########
 #entity that was actually quantified in experiment, insert proper column name
-quantified_entity	Protein.Group
+quantified_entity	T: Modified.Sequence
 #########
 # maximum individual ANOVA p-value for entity to be cosidered as informative and be used for merging the categories taking most of their
 # regulation from the same proteins
 max_valid_for_merging	0.1
 #########
 # Anova_separate - use -log10(p_value) as weight for calculation of overall group regulation. None for no weights
-weigths_type_for_concatenation	Anova_separate
+weigths_type_for_concatenation	None
 #########
 # keep as is, currently no change will work
 characterizers	Anova_characterizer;Anova_limiter
 #########
 #Keep as Valid_ANOVA_ + quantified_entity
-group_merging_column	Valid_ANOVA_Protein.Group
+group_merging_column	Valid_ANOVA_T: Modified.Sequence
 #########
 # minimum observations in one group, for prefiltering before imputation, to avoid imputing too empty rows
 minobs_before_knn	2
@@ -70,20 +69,22 @@ group_filtering	Anova_grouped
 max_categorywise_anova	0.001
 #########
 # minimum calculated difference of groups. Keep >0.5 if weights are used, depending of data quality. Without weighting, may be lower
-minimum_categorywise_difference	0.6
+minimum_categorywise_difference	0.5
 #########
 # minimum quantified entities in category to consider for calculation
-minimum_entities_per_category	3
+minimum_entities_per_category	5
 #########
 # label font sizes and plot sizes
-x_label_size	10
-y_label_size	10
+x_label_size	8
+y_label_size	8
 x_figure_size	10
-y_figure_size	20
+y_figure_size	30
 #########
 # For individual category graphs column with descriptions to annotate
-description_column	First.Protein.Description
+description_column	T: Modified.Sequence
 #
-max_individual_ANOVA	0.0001
+max_individual_ANOVA	0.001
 #
 min_individual_difference	1
+# True will normalze means instead for z-score for qyantity visualization
+normalize_means_for_map	True

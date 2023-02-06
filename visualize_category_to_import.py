@@ -170,6 +170,10 @@ def clustermap_single(data,data_imputed,quantcolumns,description,quantified_enti
     numrows = data.shape[0]
     transform = lambda x: x[0:70] if len(x)>70 else x
     description = transform(description)
+    print(data.columns)
+    print(data.index)
+    if  description_column == quantified_entity:
+        data[description_column] = data.index
     cols = list(data.columns)
     cols.remove(valid_data)
     cols.remove(description_column)
@@ -195,7 +199,7 @@ def visualize_invidual(inputfile,quantified_entity,entrylist,quantcolumns,condit
 
     datasource = pd.read_csv(inputfile, sep = '\t')
     datasource = datasource[pd.isna(datasource[quantified_entity]) == False]
-    datasource[quantcolumns] = datasource[quantcolumns].apply(np.log2)
+    #datasource[quantcolumns] = datasource[quantcolumns].apply(np.log2)
     datasource_imputed = impute(datasource,quantcolumns,quantified_entity,neighbors_knn_rowcluster)
     datasource = validate_rows(datasource,quantcolumns,conditions,max_individual_ANOVA,min_individual_difference)
     entrylist = take_items(entrylist)

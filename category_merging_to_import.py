@@ -15,7 +15,7 @@ from sklearn.impute import KNNImputer
 import os
 import matplotlib.pyplot as plt
 
-
+''''Add something to guess 0, NaN,nan itp as NA'''
 def prepare_data_cl(dataframe,quantcolumns,conditions,quantified_entity,minobs,mingroups,n):
     
     '''
@@ -61,7 +61,8 @@ def prepare_data_cl(dataframe,quantcolumns,conditions,quantified_entity,minobs,m
         return imputed_data
     
     dataframe["valid"] = dataframe.apply(missing_filter_nobs_ngroups,args = [conditions,minobs,mingroups],axis=1) # filter valid entries
-    dataframe[quantcolumns] = dataframe[quantcolumns].apply(np.log2) #make log2 transform
+    #dataframe[quantcolumns] = dataframe[quantcolumns].apply(np.log2) #make log2 transform
+    dataframe.to_csv("test.tsv",sep='\t')
     ready_data = impute(dataframe,quantcolumns,quantified_entity,n) #impute
     ready_data = ready_data.reset_index() 
     return ready_data
@@ -145,17 +146,17 @@ def group_categories_simple(dataframe,quantcolumns,conditions,numcolumns,quantif
         dataframe[quantcolumns] = dataframe[quantcolumns] + total_mean
         
     # z-score transformation of rows    
+    
     if zsc:
         dataframe[quantcolumns] = dataframe[quantcolumns].apply(sts.zscore,axis=1)
     if deconcatenate_categories:
         dataframe = dataframe.drop(categorycolumn,axis=1).join(dataframe[categorycolumn].str.split(";",expand=True).stack().reset_index(level=1, drop=True).rename(categorycolumn))
         dataframe = dataframe.drop_duplicates()
-        
+            
     dataframe = dataframe.groupby(by=categorycolumn)   # initialize gropuping to further make custom calculations on groups
     newdataframe = []
     textcolumns = copy.copy(textcolumns)
     textcolumns.remove(categorycolumn)
-
     for group in dataframe:
         newline = {}
         if characterizers ==None:
@@ -184,10 +185,11 @@ def group_categories_simple(dataframe,quantcolumns,conditions,numcolumns,quantif
         newdataframe.append(newline)
     os.chdir('..')
     outdataframe = pd.DataFrame(newdataframe)
+    outdataframe["Max_difference"] = outdataframe[quantcolumns].apply(calc_maxdiff,args = [conditions],axis =1)
     return (outdataframe,newcolumns)
 
 
-def merge_identical_groups(dataframe,categorycolumn,mergecolumn,textcolumns,numcolumns,quantcolumns):
+def merge_identical_groups(dataframe,categorycolumn,mergecolumn,textcolumns,numcolumns,quantcolumns,conditions):
     '''Attepmpt to merge exatly identical categories
     dataframe - data to operate on. Pandas dataframe
     categorycolumn - column with categories to merge. String
@@ -216,7 +218,7 @@ def merge_identical_groups(dataframe,categorycolumn,mergecolumn,textcolumns,numc
     for item in textcolumns:
         dataframe[item] = dataframe[item].apply(lambda x: "|".join(set(x.split("|"))))
     
-    
+    dataframe["Max_difference"] = dataframe[quantcolumns].apply(calc_maxdiff,args = [conditions],axis =1)
     return dataframe
 
 
@@ -238,7 +240,16 @@ def calculate_ANOVA(dataframe,quantcolumns,conditions,suffix):
         return stat
     dataframe["Anova"+suffix] = dataframe.apply(calc_anova,args = [conditions],axis =1)
     return dataframe
-    
+
+
+def calc_maxdiff(serieslike,groups):
+    means = []
+    for group in groups.keys():
+        groupdata = list(serieslike[groups[group]])
+        mean = np.mean(groupdata)
+        means.append(mean)
+    maxdiff = max(means) - min(means)
+    return maxdiff
     
 def filter_simple(dataframe,quantcolumns,conditions,anovacolumn,maxp,mindiff,minnum):
     
@@ -253,17 +264,10 @@ def filter_simple(dataframe,quantcolumns,conditions,anovacolumn,maxp,mindiff,min
     minnum - minum entities per catogory
     Returns - filtered, category grouped dataframe ready for plotting
     '''
-    def calc_maxdiff(serieslike,groups):
-        means = []
-        for group in groups.keys():
-            groupdata = list(serieslike[groups[group]])
-            mean = np.mean(groupdata)
-            means.append(mean)
-        maxdiff = max(means) - min(means)
-        return maxdiff
+
     if anovacolumn != None:    
         dataframe = dataframe[dataframe[anovacolumn] < maxp]
-    dataframe["Max_difference"] = dataframe[quantcolumns].apply(calc_maxdiff,args = [conditions],axis =1)
+    
     dataframe = dataframe[dataframe["Max_difference"] > mindiff]
     if minnum > 0:
         dataframe = dataframe[dataframe["Entity_Number"] > minnum]
@@ -272,7 +276,7 @@ def filter_simple(dataframe,quantcolumns,conditions,anovacolumn,maxp,mindiff,min
     
     return dataframe
     
-def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig_y_s):
+def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig_y_s,normalize_means):
     ''' 
     draws visualization
     data - dataframe to visualize
@@ -286,12 +290,25 @@ def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig
     returns seaborn.ClusterGrid instance
     
     '''
+    def normalize_mean(serieslike):
+        try:
+            serieslike = serieslike - serieslike.mean()
+        except:
+            print(serieslike)
+            serieslike = serieslike
+        return serieslike
+    
+    
     data = data.rename(renamer,axis=1)
     data[description] = data[description].apply(lambda x: x[0:70] if len(x)>70 else x )
     for_clustering = data[quantcolumns + [description]]
+    z = 0
+    if normalize_means:
+        for_clustering[quantcolumns] = for_clustering[quantcolumns].apply(normalize_mean,axis=1)
+        z = None
     for_clustering = for_clustering.set_index(description)
     with seaborn.plotting_context(rc={'xtick.labelsize': x_lab_s,'ytick.labelsize': y_lab_s,"font.size" :10}):
-        cluster = seaborn.clustermap(for_clustering,cmap="bwr",z_score=0,metric="correlation",figsize = (fig_x_s,fig_y_s),col_cluster=False,\
+        cluster = seaborn.clustermap(for_clustering,cmap="bwr",z_score=z,metric="correlation",figsize = (fig_x_s,fig_y_s),col_cluster=False,\
         dendrogram_ratio=(0.3,0.1),colors_ratio = (0.05),cbar_pos = None,tree_kws={"linewidths":2.5})
     return cluster
 
@@ -301,12 +318,13 @@ def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig
 def perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumns,conditions,comparisons,\
                      renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
                     group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
-                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_grp,mingroups_grp,neighbors_knn_grp):
+                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_grp,mingroups_grp,neighbors_knn_grp,normalize_means):
     ''' Arguments from previous functions and params.txt file
     Returns seaborn.ClusterGrid instance for plotting and list of finally used categories'''
     
     
-    dataframe = pd.read_csv(inputfile, sep = "\t")  
+    dataframe = pd.read_csv(inputfile, sep = "\t") 
+    print(inputfile)
     # impute and filter valid values
     test_frame = prepare_data_cl(dataframe,quantcolumns,conditions,quantified_entity,minobs_grp,mingroups_grp,neighbors_knn_grp)
     # calculate ANOVA per row in frame
@@ -316,11 +334,11 @@ def perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumn
     output = group_categories_simple(dataframe,quantcolumns,conditions,numcolumns,quantified_entity,max_valid_for_merging,textcolumns,categorycolumn,weigths=weight_name,characterizers=characterizer_list)
     outdata = output[0]
     textcolumns = textcolumns +output[1]
-    outdata2 = merge_identical_groups(outdata,categorycolumn,group_merging_column,textcolumns,numcolumns,quantcolumns)
+    outdata2 = merge_identical_groups(outdata,categorycolumn,group_merging_column,textcolumns,numcolumns,quantcolumns,conditions)
     outdata3 = calculate_ANOVA(outdata2,quantcolumns,conditions,"_grouped")
     outdata4 = filter_simple(outdata3,quantcolumns,conditions,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,minimum_entities)
-    cluster_all = clustermap(outdata4,quantcolumns,renamer[categorycolumn],renamer,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size)
-    outdata4.to_csv("category_mean_prepared_1"+ "_".join(categorycolumn.split(" ")[1:])+".tsv",sep="\t",index=False)
+    cluster_all = clustermap(outdata4,quantcolumns,renamer[categorycolumn],renamer,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,normalize_means)
+
     final_categories = list(outdata4[categorycolumn].unique())
 
-    return cluster_all,final_categories
+    return cluster_all,final_categories,outdata4, outdata3
