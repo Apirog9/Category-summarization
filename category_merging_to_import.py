@@ -318,7 +318,7 @@ def clustermap(data,quantcolumns,description,renamer,x_lab_s,y_lab_s,fig_x_s,fig
 def perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumns,conditions,comparisons,\
                      renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
                     group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
-                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_grp,mingroups_grp,neighbors_knn_grp,normalize_means):
+                       minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_grp,mingroups_grp,neighbors_knn_grp,normalize_means,merge_groups):
     ''' Arguments from previous functions and params.txt file
     Returns seaborn.ClusterGrid instance for plotting and list of finally used categories'''
     
@@ -334,8 +334,9 @@ def perform_grouping(inputfile,categorycolumn,quantcolumns,numcolumns,textcolumn
     output = group_categories_simple(dataframe,quantcolumns,conditions,numcolumns,quantified_entity,max_valid_for_merging,textcolumns,categorycolumn,weigths=weight_name,characterizers=characterizer_list)
     outdata = output[0]
     textcolumns = textcolumns +output[1]
-    outdata2 = merge_identical_groups(outdata,categorycolumn,group_merging_column,textcolumns,numcolumns,quantcolumns,conditions)
-    outdata3 = calculate_ANOVA(outdata2,quantcolumns,conditions,"_grouped")
+    if merge_groups:
+        outdata = merge_identical_groups(outdata,categorycolumn,group_merging_column,textcolumns,numcolumns,quantcolumns,conditions)
+    outdata3 = calculate_ANOVA(outdata,quantcolumns,conditions,"_grouped")
     outdata4 = filter_simple(outdata3,quantcolumns,conditions,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,minimum_entities)
     cluster_all = clustermap(outdata4,quantcolumns,renamer[categorycolumn],renamer,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,normalize_means)
 

@@ -93,6 +93,12 @@ if normalize_means == 'True':
     normalize_means = True
 else:
     normalize_means = False
+    
+merge_groups = linedict['merge_groups']
+if merge_groups == 'True':
+    merge_groups = True
+else:
+    merge_groups = False
 
     
 description_column = linedict['description_column']
@@ -132,7 +138,7 @@ listname = None
 """why the hell double modifiedsequence???????"""
 #Here filter for binder peptides
 complete = pd.read_csv(inputfile, sep = '\t')
-filtered  = complete[complete['C: Any binder'] == 'Keep']
+filtered  = complete[complete['Any_Weak_Binder'] == True]
 filtered.to_csv('binders_only_' + inputfile, sep = '\t', index=False)
 inputfile = 'binders_only_' + inputfile
 
@@ -143,7 +149,7 @@ if not single_only:
                      renamer,quantified_entity,max_valid_for_merging,weight_name,characterizer_list,\
                     group_merging_column,group_filtering_column,max_categorywise_anova,minimum_categorywise_difference,\
                        minimum_entities,fig_x_lab,fig_y_lab,fig_x_size,fig_y_size,minobs_before_knn,\
-                           mingroups_before_knn,n_neighbors_category_analysis,normalize_means)
+                           mingroups_before_knn,n_neighbors_category_analysis,normalize_means, merge_groups)
     os.chdir(wd)
     listname = categorycolumn+'_chosen_categories_.txt'
     with open(listname,'w') as output:

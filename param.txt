@@ -88,3 +88,5 @@ max_individual_ANOVA	0.001
 min_individual_difference	1
 # True will normalze means instead for z-score for qyantity visualization
 normalize_means_for_map	True
+# True will merge identical or nearly identical groups, False useful for comparision of different data sets
+merge_groups	False
