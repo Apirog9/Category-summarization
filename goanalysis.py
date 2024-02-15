@@ -33,11 +33,8 @@ class MergingAnalysis:
     """
     Merge/average analysis of quantitative data annotated with categories (typically - Gene Ontology terms).
     
-    ...
-
     Attributes
     ----------
-    
     categorycolumns : list of str
         List of category columns to consider
     raw_quant_data : DataFrame
@@ -193,15 +190,37 @@ class MergingAnalysis:
             if not all([x in self.raw_quant_data.columns for x in list(it.chain.from_iterable(list(self.conditions.values())))]):
                 print('check condition columns names')    
                 
-    def prepare_data(self):
+    def prepare_data(self,conditions=None,minobs_before_knn=None,mingroups_before_knn=None,n_neighbors_category_analysis=None):
         """
         Perform inital data processing.
         
         Filtering badly quantified entities by
         selecting ones with min valid values in min number of conditions and
         KNN imputation of filtered data.
+
+        Parameters
+        ----------
+        conditions: dict
+            Dictionary of str:list of str form containing condition names and
+            corresponding quantitative columns names.
+        minobs_before_knn: int
+            Minimum valid values in condition for condition to be considered valid.
+        mingroups_before_knn: int
+            Minumim valid conditions for entity not to be removed before imputation.
+        n_neighbors_category_analysis: int
+            N neighbors for imputation of global quantification table before grouping.
+
+        Returns
+        -------
+        None.
+
+        """
+        if conditions: self.conditions = conditions
+        if minobs_before_knn: self.minobs_before_knn = minobs_before_knn
+        if mingroups_before_knn: self.mingroups_before_knn = mingroups_before_knn
+        if n_neighbors_category_analysis: self.n_neighbors_category_analysis = n_neighbors_category_analysis
         
-        """     
+        
         if not all([self.conditions,self.minobs_before_knn,self.mingroups_before_knn,self.n_neighbors_category_analysis]):
             print('check parameters!')
             return None
@@ -422,7 +441,19 @@ class MergingAnalysis:
         self.prepared_data["Anova_separate"] = self.prepared_data["Anova_separate"].apply(lambda x: -1*np.log10(x))
 
     def calculate_ANOVA_group(self,selected_category):
-        """Calculate ANOVA one-way to assess quantification quality of grouped entities."""
+        """
+        Calculate ANOVA one-way to assess quantification quality of grouped entities.
+
+        Parameters
+        ----------
+        selected_category : str
+            category column name containing deconcatenated category strings, one per line.
+
+        Returns
+        -------
+        None.
+
+        """
         self.merged_frames[selected_category]["Anova_grouped"] = self.merged_frames[selected_category].apply(self.__calc_anova,args = [self.conditions],axis =1)
 
 
@@ -483,7 +514,6 @@ class MergingAnalysis:
             Imputed part is used only to nicly produce row clusters on heatmap.
 
         """
-        
         datasource = copy.copy(self.raw_quant_data)
         datasource_imputed = copy.copy(self.full_imputed_data)
         datasource['lookup'] = datasource[category_type].apply(lambda x: category in str(x).split(';'))
@@ -572,7 +602,7 @@ class MergingAnalysis:
         Break string into lines of length maxlength.
         
         Makes lines of exactly identical length for plot labels (space-filled)
-        TODO check what the hell is string
+        
         Parameters
         ----------
         string : TYPE
@@ -719,7 +749,7 @@ class MergingAnalysis:
             pass
         self.filtered_frames[selected_category] = dataframe
         
-    def clustermap(self,selected_category,x_lab_s,y_lab_s,fig_x_s,fig_y_s):
+    def clustermap(self,selected_category,x_lab_s,y_lab_s,fig_x_s,fig_y_s,font_size=10,z_score = False,normalize_mean=True,**kwargs):
         """
         Draw heatmap from prepared category data.
 
@@ -735,6 +765,8 @@ class MergingAnalysis:
             Figure x size.
         fig_y_s : float
             Figure y size.
+        **kwargs key, value mappings
+            Arguments passed to seaborn.clustermap
 
         Returns
         -------
@@ -742,15 +774,28 @@ class MergingAnalysis:
             Resulting heatmap.
 
         """
+        kwargs.setdefault('cmap', "bwr")
+        kwargs.setdefault('metric', "correlation")
+        kwargs.setdefault('col_cluster', False)
+        kwargs.setdefault('dendrogram_ratio', (0,0))
+        kwargs.setdefault('colors_ratio', (0.01))
+        kwargs.setdefault('cbar_pos', None)
+        kwargs.setdefault('tree_kws', {"linewidths":2.5})
+        
+        if z_score:
+            kwargs.setdefault('z_score',0)
+        else:
+            kwargs.setdefault('z_score',None)
         data = copy.copy(self.filtered_frames[selected_category])
         data = data.rename(self.renamer,axis=1)
         description_column = self.renamer[selected_category]
         data[description_column] = data[description_column].apply(lambda x: x[0:70] if len(x)>70 else x )
         for_clustering = data[self.quantcolumns + [description_column]]
+        if normalize_mean:
+            for_clustering[self.quantcolumns] = for_clustering[self.quantcolumns].subtract(for_clustering[self.quantcolumns].mean(axis=1),axis=0)
         for_clustering = for_clustering.set_index(description_column)
         with sns.plotting_context(rc={'xtick.labelsize': x_lab_s,'ytick.labelsize': y_lab_s,"font.size" :10}):
-            cluster = sns.clustermap(for_clustering,cmap="bwr",z_score=0,metric="correlation",figsize = (fig_x_s,fig_y_s),col_cluster=False,\
-            dendrogram_ratio=(0,0),colors_ratio = (0.01),cbar_pos = None,tree_kws={"linewidths":2.5})
+            cluster = sns.clustermap(for_clustering,figsize = (fig_x_s,fig_y_s),**kwargs)
             plt.xticks(rotation=45)
             cluster.ax_heatmap.set_aspect(aspect=(fig_y_s/fig_x_s))
         return cluster
@@ -846,7 +891,6 @@ class MergingAnalysis:
         -------
         None.
         """
-        
         if categories_to_plot in self.filtered_frames:
             itemlist = list(self.filtered_frames[categories_to_plot][categories_to_plot])
             itemlist = [x.split(';') for x in itemlist]
@@ -857,18 +901,48 @@ class MergingAnalysis:
         
         
     def __clustermap_single(self,data,data_imputed,category,normalize_mean=True,z_score=False,plottitle = None,xlab_size=10,ylab_size=10,font_size=10,figsize=None,**kwargs):
+        """
+        Draw heatmap of single category in entity level.
+
+        Parameters
+        ----------
+        data : DataFrame
+            Slice of non-imuted dataframe.
+        data_imputed : DataFrame
+            Slice of non-imuted dataframe.
+        category : str
+            categroy name, will be used as default plot title.
+        normalize_mean : bool, optional
+            whether to normalize row means. The default is True.
+        z_score : bool, optional
+            whether to z-score rows. The default is False.
+        plottitle : str, optional
+            plot title if different than category. The default is None.
+        xlab_size : float, optional
+            x label size. The default is 10.
+        ylab_size : float, optional
+            y label size. The default is 10.
+        font_size : float, optional
+            font size. The default is 10.
+        figsize : tuple (float,float), optional
+            figure size. The default is None.
+        **kwargs : key, value mappings
+            Arguments passed to seaborn.clustermap.
+
+        Returns
+        -------
+        cluster : Seaborn ClusterGrid instance
+            Resulting heatmap.
+
+        """
+        kwargs.setdefault('cmap', "coolwarm")
+        kwargs.setdefault('metric', "correlation")
+        kwargs.setdefault('col_cluster', False)
+        kwargs.setdefault('dendrogram_ratio', (0,0.1))
+        kwargs.setdefault('colors_ratio', (0.05))
+        kwargs.setdefault('cbar_pos', (0,1,0.05,0.2))
+        kwargs.setdefault('tree_kws', {"linewidths":0})
         
-        '''Makes a clustermap for individual category with per-entity(usually per-protein) rows and additional column
-        containing valid marker
-        data -  chunk of raw data
-        data_imputed - chunk of imputed data
-        description -  plot title string, usually categroy name
-        quantified_entity - actually qiantified entity in data. Most commonly, protein group
-        valid_data - column containing markers for valid and not valid rows, as rgb 3-element lists!
-        description_column - column with description for row labels
-        Returns seaborn.ClusterGrid instance
-        
-        '''
         numrows = data.shape[0]
         if not plottitle:
             plottitle = category
@@ -885,7 +959,12 @@ class MergingAnalysis:
         if self.description_column == self.quantified_entity:
             cols.remove(self.quantified_entity)
         for_clustering = data[cols]
-        for_clustering[self.quantcolumns] = for_clustering[self.quantcolumns].subtract(for_clustering[self.quantcolumns].mean(axis=1),axis=0)
+        if normalize_mean:
+            for_clustering[self.quantcolumns] = for_clustering[self.quantcolumns].subtract(for_clustering[self.quantcolumns].mean(axis=1),axis=0)
+        if z_score:
+            kwargs.setdefault('z_score',0)
+        else:
+            kwargs.setdefault('z_score',None)
         matrix = data_imputed[self.quantcolumns]
         matrix = np.array(matrix)
         dist_matrix = distance(matrix)
@@ -893,9 +972,8 @@ class MergingAnalysis:
         data[self.description_column] = data[self.description_column].apply(MergingAnalysis.__linebreaker,args = [50])
         sns.plotting_context(rc={'xtick.labelsize': xlab_size,'ytick.labelsize': ylab_size,"font.size" :font_size})
         
-        cluster = sns.clustermap(for_clustering,cmap="coolwarm",z_score=None,metric="correlation",figsize = figsize,col_cluster=False,\
-        dendrogram_ratio=(0,0.1),colors_ratio = (0.05),cbar_pos = (0,1,0.05,0.2),tree_kws={"linewidths":0},\
-        row_colors = data['Valid Row'],row_linkage = link,yticklabels = data[self.description_column],**kwargs)
+        cluster = sns.clustermap(for_clustering,figsize = figsize,row_colors = data['Valid Row'],row_linkage = link,yticklabels = data[self.description_column],**kwargs)
+        
         cluster.ax_heatmap.set_title(plottitle)
         cluster.ax_heatmap.set_xlabel('Replicate',fontweight='bold',fontsize=xlab_size)
         cluster.ax_heatmap.set_ylabel('Protein',fontweight='bold',fontsize=ylab_size)
@@ -907,6 +985,36 @@ class MergingAnalysis:
     
     
     def plot_single_categories(self,toplot=None,normalize_mean=True,z_score=False,plottitle = None,xlab_size=10,ylab_size=10,font_size=10,figsize=None,**kwargs):
+        """
+        Plot defined set of categories.
+
+        Parameters
+        ----------
+        toplot : dict, optional
+            dictionary of form category column name : list of categories. The default is None and 
+            will use self.plotting_categories
+        normalize_mean : bool, optional
+            whether to normalize row meand. The default is True.
+        z_score : bool, optional
+            whether to z-score rows. The default is False.
+        plottitle : str, optional
+            plot title if different from names of categories. The default is None.
+        xlab_size : float, optional
+            x label size. The default is 10.
+        ylab_size : float, optional
+            y label size. The default is 10.
+        font_size : float, optional
+            font size. The default is 10.
+        figsize : tuple (float,float), optional
+            figure size. The default is None.
+        **kwargs : key, value mappings
+            Arguments passed to seaborn.clustermap.
+
+        Returns
+        -------
+        None.
+
+        """
         if not toplot:
             toplot = self.plotting_categories
         
